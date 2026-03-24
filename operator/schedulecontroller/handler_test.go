@@ -187,8 +187,8 @@ func TestScheduleHandler_mergeBackendWithDefaults(t *testing.T) {
 				Backend: &tt.givenResourceBackend,
 			}
 			schedule.mergeBackendWithDefaults(res)
-			assert.NotNil(t, res.Backend.S3)
-			assert.Equal(t, *tt.expectedBackend.S3, *res.Backend.S3)
+			assert.NotNil(t, res.Backend.BackendInterface)
+			assert.Equal(t, tt.expectedBackend.BackendInterface, res.Backend.BackendInterface)
 		})
 	}
 }
@@ -352,7 +352,7 @@ func Test_generateName(t *testing.T) {
 
 func newS3Backend(endpoint, bucket string) k8upv1.Backend {
 	return k8upv1.Backend{
-		S3: &k8upv1.S3Spec{
+		BackendInterface: &k8upv1.S3Spec{
 			Endpoint: endpoint,
 			Bucket:   bucket,
 		},

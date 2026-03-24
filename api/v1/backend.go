@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -18,13 +19,17 @@ type (
 		RepoPasswordSecretRef *corev1.SecretKeySelector `json:"repoPasswordSecretRef,omitempty"`
 		// EnvFrom adds all environment variables from a an external source to the Restic job.
 		EnvFrom []corev1.EnvFromSource `json:"envFrom,omitempty"`
-		Local   *LocalSpec             `json:"local,omitempty"`
-		S3      *S3Spec                `json:"s3,omitempty"`
-		GCS     *GCSSpec               `json:"gcs,omitempty"`
-		Azure   *AzureSpec             `json:"azure,omitempty"`
-		Swift   *SwiftSpec             `json:"swift,omitempty"`
-		B2      *B2Spec                `json:"b2,omitempty"`
-		Rest    *RestServerSpec        `json:"rest,omitempty"`
+
+		// Concrete backend fields
+		Local *LocalSpec      `json:"local,omitempty"`
+		S3    *S3Spec         `json:"s3,omitempty"`
+		GCS   *GCSSpec        `json:"gcs,omitempty"`
+		Azure *AzureSpec      `json:"azure,omitempty"`
+		Swift *SwiftSpec      `json:"swift,omitempty"`
+		B2    *B2Spec         `json:"b2,omitempty"`
+		Rest  *RestServerSpec `json:"rest,omitempty"`
+
+		BackendInterface
 
 		TLSOptions   *TLSOptions           `json:"tlsOptions,omitempty"`
 		VolumeMounts *[]corev1.VolumeMount `json:"volumeMounts,omitempty"`
@@ -36,7 +41,21 @@ type (
 	BackendInterface interface {
 		fmt.Stringer
 		EnvVars(vars map[string]*corev1.EnvVarSource) map[string]*corev1.EnvVarSource
+		GetType() BackendType
 	}
+)
+
+// BackendType is a String ENUM representation of the backend type.
+type BackendType string
+
+const (
+	BackendTypeS3    BackendType = "s3"
+	BackendTypeGCS   BackendType = "gcs"
+	BackendTypeAzure BackendType = "azure"
+	BackendTypeSwift BackendType = "swift"
+	BackendTypeB2    BackendType = "b2"
+	BackendTypeRest  BackendType = "rest"
+	BackendTypeLocal BackendType = "local"
 )
 
 // GetCredentialEnv will return a map containing the credentials for the given backend.
@@ -49,28 +68,19 @@ func (in *Backend) GetCredentialEnv() map[string]*corev1.EnvVarSource {
 		}
 	}
 
-	for _, backend := range in.getSupportedBackends() {
-		if IsNil(backend) {
-			continue
-		}
-		return backend.EnvVars(vars)
+	if in.BackendInterface == nil {
+		return vars
 	}
-
-	return nil
+	return in.BackendInterface.EnvVars(vars)
 }
 
 // String returns the string representation of the repository. If no repo is
 // defined it'll return empty string.
 func (in *Backend) String() string {
-
-	for _, backend := range in.getSupportedBackends() {
-		if IsNil(backend) {
-			continue
-		}
-		return backend.String()
+	if in.BackendInterface == nil {
+		return ""
 	}
-	return ""
-
+	return in.BackendInterface.String()
 }
 
 // IsBackendEqualTo returns true if the restic repository string is equal to the other's string.
@@ -82,8 +92,39 @@ func (in *Backend) IsBackendEqualTo(other *Backend) bool {
 	return in.String() == other.String()
 }
 
-func (in *Backend) getSupportedBackends() []BackendInterface {
-	return []BackendInterface{in.Azure, in.B2, in.GCS, in.Local, in.Rest, in.S3, in.Swift}
+// UnmarshalJSON populates the BackendInterface field based on which concrete backend is specified
+func (b *Backend) UnmarshalJSON(data []byte) error {
+	// Define a temporary struct with the same fields but without BackendInterface to avoid recursion
+	type Alias Backend
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(b),
+	}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	// Set BackendInterface based on which concrete backend is specified
+	switch {
+	case b.S3 != nil:
+		b.BackendInterface = b.S3
+	case b.GCS != nil:
+		b.BackendInterface = b.GCS
+	case b.Azure != nil:
+		b.BackendInterface = b.Azure
+	case b.Swift != nil:
+		b.BackendInterface = b.Swift
+	case b.B2 != nil:
+		b.BackendInterface = b.B2
+	case b.Local != nil:
+		b.BackendInterface = b.Local
+	case b.Rest != nil:
+		b.BackendInterface = b.Rest
+	}
+
+	return nil
 }
 
 // IsNil returns true if the given value is nil using reflect.
@@ -104,6 +145,11 @@ type LocalSpec struct {
 	MountPath string `json:"mountPath,omitempty"`
 }
 
+// GetType returns the BackendType of this backend.
+func (in *LocalSpec) GetType() BackendType {
+	return BackendTypeLocal
+}
+
 // EnvVars returns the env vars for this backend.
 func (in *LocalSpec) EnvVars(vars map[string]*corev1.EnvVarSource) map[string]*corev1.EnvVarSource {
 	return vars
@@ -119,6 +165,11 @@ type S3Spec struct {
 	Bucket                   string                    `json:"bucket,omitempty"`
 	AccessKeyIDSecretRef     *corev1.SecretKeySelector `json:"accessKeyIDSecretRef,omitempty"`
 	SecretAccessKeySecretRef *corev1.SecretKeySelector `json:"secretAccessKeySecretRef,omitempty"`
+}
+
+// GetType returns the BackendType of this backend.
+func (in *S3Spec) GetType() BackendType {
+	return BackendTypeS3
 }
 
 // EnvVars returns the env vars for this backend.
@@ -193,6 +244,11 @@ type GCSSpec struct {
 	AccessTokenSecretRef *corev1.SecretKeySelector `json:"accessTokenSecretRef,omitempty"`
 }
 
+// GetType returns the BackendType of this backend.
+func (in *GCSSpec) GetType() BackendType {
+	return BackendTypeGCS
+}
+
 // EnvVars returns the env vars for this backend.
 func (in *GCSSpec) EnvVars(vars map[string]*corev1.EnvVarSource) map[string]*corev1.EnvVarSource {
 	addEnvVarFromSecret(vars, cfg.GcsProjectIDEnvName, in.ProjectIDSecretRef)
@@ -211,6 +267,11 @@ type AzureSpec struct {
 	Path                 string                    `json:"path,omitempty"`
 	AccountNameSecretRef *corev1.SecretKeySelector `json:"accountNameSecretRef,omitempty"`
 	AccountKeySecretRef  *corev1.SecretKeySelector `json:"accountKeySecretRef,omitempty"`
+}
+
+// GetType returns the BackendType of this backend.
+func (in *AzureSpec) GetType() BackendType {
+	return BackendTypeAzure
 }
 
 // EnvVars returns the env vars for this backend.
@@ -235,6 +296,11 @@ type SwiftSpec struct {
 	Path      string `json:"path,omitempty"`
 }
 
+// GetType returns the BackendType of this backend.
+func (in *SwiftSpec) GetType() BackendType {
+	return BackendTypeSwift
+}
+
 // EnvVars returns the env vars for this backend.
 func (in *SwiftSpec) EnvVars(vars map[string]*corev1.EnvVarSource) map[string]*corev1.EnvVarSource {
 	return vars
@@ -250,6 +316,11 @@ type B2Spec struct {
 	Path                string                    `json:"path,omitempty"`
 	AccountIDSecretRef  *corev1.SecretKeySelector `json:"accountIDSecretRef,omitempty"`
 	AccountKeySecretRef *corev1.SecretKeySelector `json:"accountKeySecretRef,omitempty"`
+}
+
+// GetType returns the BackendType of this backend.
+func (in *B2Spec) GetType() BackendType {
+	return BackendTypeB2
 }
 
 // EnvVars returns the env vars for this backend.
@@ -268,6 +339,11 @@ type RestServerSpec struct {
 	URL               string                    `json:"url,omitempty"`
 	UserSecretRef     *corev1.SecretKeySelector `json:"userSecretRef,omitempty"`
 	PasswordSecretReg *corev1.SecretKeySelector `json:"passwordSecretReg,omitempty"`
+}
+
+// GetType returns the BackendType of this backend.
+func (in *RestServerSpec) GetType() BackendType {
+	return BackendTypeRest
 }
 
 // EnvVars returns the env vars for this backend.

@@ -321,7 +321,7 @@ func RunRestore(ctx *cli.Context) error {
 							Name: restore.Cfg.SecretRef,
 						},
 					},
-					S3: &v1.S3Spec{
+					BackendInterface: &v1.S3Spec{
 						Endpoint: restore.Cfg.S3Endpoint,
 						Bucket:   restore.Cfg.S3Bucket,
 						AccessKeyIDSecretRef: &corev1.SecretKeySelector{

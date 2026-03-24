@@ -16,7 +16,7 @@ var tests = map[string]struct {
 }{
 	"GivenAzureBackend_ThenExpectAzureContainer": {
 		givenBackend: &Backend{
-			Azure: &AzureSpec{
+			BackendInterface: &AzureSpec{
 				Container:            "container",
 				AccountNameSecretRef: newSecretRef("name"),
 				AccountKeySecretRef:  newSecretRef("key"),
@@ -30,7 +30,7 @@ var tests = map[string]struct {
 	},
 	"GivenAzureBackendAndPath_ThenExpectAzureContainerWithCustomPath": {
 		givenBackend: &Backend{
-			Azure: &AzureSpec{
+			BackendInterface: &AzureSpec{
 				Container:            "container",
 				Path:                 "foo",
 				AccountNameSecretRef: newSecretRef("name"),
@@ -45,7 +45,7 @@ var tests = map[string]struct {
 	},
 	"GivenB2Backend_ThenExpectB2BucketAndPath": {
 		givenBackend: &Backend{
-			B2: &B2Spec{
+			BackendInterface: &B2Spec{
 				Bucket:              "bucket",
 				Path:                "path",
 				AccountKeySecretRef: newSecretRef("key"),
@@ -60,7 +60,7 @@ var tests = map[string]struct {
 	},
 	"GivenLocalBackend_ThenExpectMountPath": {
 		givenBackend: &Backend{
-			Local: &LocalSpec{
+			BackendInterface: &LocalSpec{
 				MountPath: "mountpath",
 			},
 		},
@@ -69,7 +69,7 @@ var tests = map[string]struct {
 	},
 	"GivenGcsBackend_ThenExpectGcsBucket": {
 		givenBackend: &Backend{
-			GCS: &GCSSpec{
+			BackendInterface: &GCSSpec{
 				Bucket:               "bucket",
 				AccessTokenSecretRef: newSecretRef("token"),
 				ProjectIDSecretRef:   newSecretRef("id"),
@@ -83,7 +83,7 @@ var tests = map[string]struct {
 	},
 	"GivenS3Backend_ThenExpectS3EndpointURLWithBucket": {
 		givenBackend: &Backend{
-			S3: &S3Spec{
+			BackendInterface: &S3Spec{
 				Bucket:                   "bucket",
 				Endpoint:                 "https://endpoint",
 				SecretAccessKeySecretRef: newSecretRef("secret"),
@@ -98,7 +98,7 @@ var tests = map[string]struct {
 	},
 	"GivenSwiftBackend_ThenExpectSwiftBucket": {
 		givenBackend: &Backend{
-			Swift: &SwiftSpec{
+			BackendInterface: &SwiftSpec{
 				Container: "container",
 				Path:      "path",
 			},
@@ -108,7 +108,7 @@ var tests = map[string]struct {
 	},
 	"GivenRestBackend_ThenExpectRestUrl": {
 		givenBackend: &Backend{
-			Rest: &RestServerSpec{
+			BackendInterface: &RestServerSpec{
 				URL:               "https://server",
 				PasswordSecretReg: newSecretRef("password"),
 				UserSecretRef:     newSecretRef("user"),
@@ -156,13 +156,13 @@ func TestBackend_IsBackendEqualTo(t *testing.T) {
 	}{
 		"GivenDifferentBackend_WhenComparing_ThenReturnFalse": {
 			givenBackend: Backend{
-				S3: &S3Spec{
+				BackendInterface: &S3Spec{
 					Endpoint: "https://endpoint",
 					Bucket:   "bucket",
 				},
 			},
 			otherBackend: &Backend{
-				Azure: &AzureSpec{
+				BackendInterface: &AzureSpec{
 					Container: "container",
 				},
 			},
@@ -170,13 +170,13 @@ func TestBackend_IsBackendEqualTo(t *testing.T) {
 		},
 		"GivenSameBackend_WhenComparingWithDifferentValues_ThenReturnFalse": {
 			givenBackend: Backend{
-				S3: &S3Spec{
+				BackendInterface: &S3Spec{
 					Endpoint: "https://endpoint",
 					Bucket:   "bucket1",
 				},
 			},
 			otherBackend: &Backend{
-				S3: &S3Spec{
+				BackendInterface: &S3Spec{
 					Endpoint: "https://endpoint",
 					Bucket:   "bucket2",
 				},
@@ -185,13 +185,13 @@ func TestBackend_IsBackendEqualTo(t *testing.T) {
 		},
 		"GivenSameBackend_WhenComparingWithSameValues_ThenReturnTrue": {
 			givenBackend: Backend{
-				S3: &S3Spec{
+				BackendInterface: &S3Spec{
 					Endpoint: "https://endpoint",
 					Bucket:   "bucket",
 				},
 			},
 			otherBackend: &Backend{
-				S3: &S3Spec{
+				BackendInterface: &S3Spec{
 					Endpoint: "https://endpoint",
 					Bucket:   "bucket",
 				},
@@ -200,7 +200,7 @@ func TestBackend_IsBackendEqualTo(t *testing.T) {
 		},
 		"GivenBackend_WhenComparingWithNil_ThenReturnFalse": {
 			givenBackend: Backend{
-				S3: &S3Spec{
+				BackendInterface: &S3Spec{
 					Endpoint: "https://endpoint",
 					Bucket:   "bucket",
 				},

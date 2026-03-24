@@ -190,6 +190,9 @@ func findNode(pv *corev1.PersistentVolume, pvc corev1.PersistentVolumeClaim) str
 }
 
 func (b *BackupExecutor) startBackup(ctx context.Context) error {
+
+	//TODO: validate BackupTarget first
+
 	ready, err := b.StartPreBackup(ctx)
 	if err != nil {
 		return err
