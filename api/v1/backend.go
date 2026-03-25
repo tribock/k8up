@@ -35,6 +35,9 @@ type (
 		VolumeMounts *[]corev1.VolumeMount `json:"volumeMounts,omitempty"`
 	}
 
+	// BackendType is a String ENUM representation of the backend type.
+	BackendType string
+
 	// +k8s:deepcopy-gen=false
 
 	// BackendInterface represents a Backend for internal use.
@@ -44,9 +47,6 @@ type (
 		GetType() BackendType
 	}
 )
-
-// BackendType is a String ENUM representation of the backend type.
-type BackendType string
 
 const (
 	BackendTypeS3    BackendType = "s3"
